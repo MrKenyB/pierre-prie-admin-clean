@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Institut Pierre Prie Design System */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Academic blue - Primary brand color */
+    --primary: 215 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 215 70% 40%;
+
+    /* Energetic orange - Secondary actions */
+    --secondary: 25 95% 55%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 25 95% 50%;
+
+    /* Muted backgrounds and text */
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Emerald accent - Success states */
+    --accent: 160 70% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Danger states */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 215 70% 45%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar specific colors */
+    --sidebar-background: 215 70% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 215 70% 45%;
+    --sidebar-accent: 215 70% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 215 70% 50%;
+    --sidebar-ring: 0 0% 100%;
+
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(215, 70%, 45%) 0%, hsl(215, 70%, 55%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(25, 95%, 55%) 0%, hsl(25, 95%, 65%) 100%);
+    
+    /* Custom shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+    
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+}
