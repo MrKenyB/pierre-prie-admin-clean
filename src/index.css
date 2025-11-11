@@ -2,13 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+
 
 @layer base {
   :root {
-    /* Institut Pierre Prie Design System */
     --background: 210 20% 98%;
     --foreground: 215 25% 15%;
 
@@ -19,7 +16,7 @@ All colors MUST be HSL.
     --popover-foreground: 215 25% 15%;
 
     /* Academic blue - Primary brand color */
-    --primary: 215 70% 45%;
+    --primary: 198.8 88.5% 37.5%;
     --primary-foreground: 0 0% 100%;
     --primary-hover: 215 70% 40%;
 
