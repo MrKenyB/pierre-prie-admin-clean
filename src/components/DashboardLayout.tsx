@@ -249,7 +249,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {/* Empty div for desktop to push profile to right */}
             <div className="hidden lg:block"></div>
 
-            {/* Right side - User Profile & Menu button */}
             <div className="flex items-center gap-2">
               {/* User Profile - Desktop */}
               <div className="hidden lg:block relative" ref={profileRef}>

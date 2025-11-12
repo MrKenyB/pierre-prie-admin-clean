@@ -51,3 +51,10 @@ export interface DashboardStats {
   totalFormations: number;
   totalTemoignages: number;
 }
+
+export interface User {
+  _id: string,
+  nom: string,
+  prenom: string,
+  email: string
+}

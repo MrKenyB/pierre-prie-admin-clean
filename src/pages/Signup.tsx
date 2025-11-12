@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { authService } from '@/services/authService';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.jpeg';
+import axios from 'axios';
+import { usePierreHook } from '@/hooks/pierreHook';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -19,6 +21,8 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const {backendUrl}= usePierreHook()
+
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,16 +54,24 @@ const Signup = () => {
       return;
     }
 
-    // Inscription
-    const result = authService.signup(nom, prenom, email, password);
 
-    if (result.success) {
+    const res = await axios.post(`${backendUrl}/api/admin/register`,{nom, prenom, email, password} )
+    
+    console.log('====================================');
+    console.log(res.data);
+    console.log('====================================');
+
+    if (res.data.success) {
       toast.success('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
-      setTimeout(() => navigate('/auth'), 1500);
+      navigate('/auth')
+      setNom('');
+      setPrenom('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
     } else {
-      setError(result.error || 'Une erreur est survenue');
+      setError('Une erreur est survenue');
     }
-
     setIsLoading(false);
   };
 
