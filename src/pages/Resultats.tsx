@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,60 +34,21 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import axios from "axios";
-
-interface Resultat {
-	id: number;
-	categorie: string;
-	filiere: string;
-	niveau: string;
-	semestre: number | string;
-	annee: string;
-	pdf: string;
-	createdAt: string;
-}
-
-const API_URL = "http://localhost:3000/api/resultats"; // ⚙️ adapte selon ton backend
+import { Resultat } from "@/types";
+import { usePierreHook } from "@/hooks/pierreHook";
 
 const Resultats = () => {
-	const [resultats, setResultats] = useState<Resultat[]>([
-		{
-			id: 1,
-			categorie: "Examen",
-			filiere: "Informatique",
-			niveau: "Licence 2",
-			semestre: "2",
-			annee: "2024-2025",
-			pdf: "/PierreP.pdf",
-			createdAt: new Date().toISOString(),
-		},
-		{
-			id: 2,
-			categorie: "Contrôle",
-			filiere: "Gestion",
-			niveau: "Licence 1",
-			semestre: "1",
-			annee: "2024-2025",
-			pdf: "/PierreP.pdf",
-			createdAt: new Date().toISOString(),
-		},
-		{
-			id: 3,
-			categorie: "Interrogation",
-			filiere: "Mathématiques",
-			niveau: "Licence 3",
-			semestre: "2",
-			annee: "2023-2024",
-			pdf: "/PierreP.pdf",
-			createdAt: new Date().toISOString(),
-		},
-	]);
+	axios.defaults.withCredentials = true;
 
+	const [resultats, setResultats] = useState<Resultat[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
 	const [currentPdf, setCurrentPdf] = useState<string>("");
-	const [editingId, setEditingId] = useState<number | null>(null);
+	const [editingId, setEditingId] = useState<string | null>(null);
+	const { backendUrl } = usePierreHook();
 	const [formData, setFormData] = useState({
-		categorie: "Contrôle",
+		categorie: "Ordinaire",
 		filiere: "",
 		niveau: "",
 		semestre: "",
@@ -94,41 +56,111 @@ const Resultats = () => {
 		fichierPDF: null as File | null,
 	});
 
-	const handleSubmit = () => {
-		const { categorie, filiere, niveau, semestre, annee } = formData;
+	useEffect(() => {
+		fetchResultats();
+	}, []);
+
+	const fetchResultats = async () => {
+		try {
+			setIsLoading(true);
+			const response = await axios.get(
+				`${backendUrl}/api/resultat/get-all`
+			);
+
+			console.log("===============resultats================");
+			console.log(response.data);
+			console.log("====================================");
+			if (response.data.success) {
+				setResultats(response.data.resultats);
+				toast.success("Résultats chargés");
+			}
+		} catch (error: any) {
+			console.error("Erreur fetch:", error);
+			toast.error(
+				error.response?.data?.message || "Erreur de chargement"
+			);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// CRÉER OU MODIFIER UN RÉSULTAT
+	const handleSubmit = async () => {
+		const { categorie, filiere, niveau, semestre, annee, fichierPDF } =
+			formData;
 
 		if (!filiere || !niveau || !semestre || !annee) {
-			alert("Veuillez remplir tous les champs");
+			toast.error("Veuillez remplir tous les champs");
 			return;
 		}
 
-		if (editingId) {
-			setResultats((prev) =>
-				prev.map((r) =>
-					r.id === editingId
-						? { ...r, categorie, filiere, niveau, semestre, annee }
-						: r
-				)
-			);
-			alert("Résultat modifié avec succès");
-		} else {
-			const newResultat: Resultat = {
-				id: Math.max(...resultats.map((r) => r.id), 0) + 1,
-				categorie,
-				filiere,
-				niveau,
-				semestre,
-				annee,
-				pdf: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-				createdAt: new Date().toISOString(),
-			};
-			setResultats((prev) => [...prev, newResultat]);
-			alert("Résultat ajouté avec succès");
+		// Si création, le PDF est obligatoire
+		if (!editingId && !fichierPDF) {
+			toast.error("Veuillez sélectionner un fichier PDF");
+			return;
 		}
 
-		resetForm();
+		try {
+			setIsLoading(true);
+
+			const data = new FormData();
+			data.append("categorie", categorie);
+			data.append("filiere", filiere);
+			data.append("niveau", niveau);
+			data.append("semestre", semestre);
+			data.append("annee", annee);
+
+			if (fichierPDF) {
+				data.append("pdf", fichierPDF);
+			}
+
+			if (editingId) {
+				// MODIFIER
+				const response = await axios.put(
+					`${backendUrl}/api/resultat/update?id=${editingId}`,
+					data,
+					{
+						headers: {
+							"Content-Type": "multipart/form-data",
+						},
+					}
+				);
+
+				if (response.data.success) {
+					toast.success("Résultat modifié avec succès");
+					fetchResultats();
+				}
+			} else {
+				// CRÉER
+				const response = await axios.post(
+					`${backendUrl}/api/resultat/create`,
+					data,
+					{
+						headers: {
+							"Content-Type": "multipart/form-data",
+						},
+					}
+				);
+
+				if (response.data.success) {
+					toast.success("Résultat ajouté avec succès");
+					fetchResultats();
+				}
+			}
+
+			resetForm();
+		} catch (error: any) {
+			console.error("Erreur submit:", error);
+			toast.error(
+				error.response?.data?.message ||
+					"Erreur lors de l'enregistrement"
+			);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
+	// PRÉPARER LA MODIFICATION
 	const handleEdit = (r: Resultat) => {
 		setFormData({
 			categorie: r.categorie,
@@ -138,24 +170,49 @@ const Resultats = () => {
 			annee: r.annee,
 			fichierPDF: null,
 		});
-		setEditingId(r.id);
+		setEditingId(r._id);
 		setIsDialogOpen(true);
 	};
 
-	const handleDelete = (id: number) => {
+	// SUPPRIMER UN RÉSULTAT
+	const handleDelete = async (id: string) => {
 		if (!confirm("Supprimer ce résultat ?")) return;
-		setResultats((prev) => prev.filter((r) => r.id !== id));
-		alert("Résultat supprimé");
+
+		try {
+			setIsLoading(true);
+			const token = localStorage.getItem("adminToken");
+
+			const response = await axios.delete(
+				`${backendUrl}/api/resultat/remove?id=${id}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			);
+
+			if (response.data.success) {
+				toast.success("Résultat supprimé");
+				fetchResultats();
+			}
+		} catch (error: any) {
+			console.error("Erreur delete:", error);
+			toast.error(
+				error.response?.data?.message || "Erreur lors de la suppression"
+			);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
-	const handleViewPdf = (pdfUrl: string) => {
-		setCurrentPdf(pdfUrl);
-		setIsPdfViewerOpen(true);
+	const handleViewPdf = (url: string) => {
+		toast.info("Ouverture du document...");
+		window.open(url, "_blank");
 	};
 
 	const resetForm = () => {
 		setFormData({
-			categorie: "Contrôle",
+			categorie: "Ordinaire",
 			filiere: "",
 			niveau: "",
 			semestre: "",
@@ -170,7 +227,7 @@ const Resultats = () => {
 
 	return (
 		<DashboardLayout>
-			<div className="min-h-scree">
+			<div className="min-h-screen">
 				<div className="p-6 lg:p-8 max-w-7xl mx-auto">
 					{/* HEADER */}
 					<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
@@ -230,23 +287,55 @@ const Resultats = () => {
 												<SelectItem value="Rattrapage">
 													Rattrapage
 												</SelectItem>
-												
 											</SelectContent>
 										</Select>
 									</div>
 
-									<div>
+									{/* <div>
 										<Label>Filière</Label>
 										<Input
 											value={formData.filiere}
 											onChange={(e) =>
-												setFormData({
-													...formData,
-													filiere: e.target.value,
-												})
+												setFormData({ ...formData, filiere: e.target.value })
 											}
 											placeholder="Ex: Informatique, Gestion..."
 										/>
+									</div> */}
+									<div>
+										<Label>Filière</Label>
+										<Select
+											value={formData.filiere}
+											onValueChange={(v) =>
+												setFormData({
+													...formData,
+													filiere: v,
+												})
+											}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Sélectionnez une filière" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="Génie industriel">
+													Génie industriel
+												</SelectItem>
+												<SelectItem value="Génie mécanique">
+													Génie mécanique
+												</SelectItem>
+												<SelectItem value="Génie électronique">
+													Génie électronique
+												</SelectItem>
+												<SelectItem value="Génie électrotechnique">
+													Génie électrotechnique
+												</SelectItem>
+												<SelectItem value="Génie civil">
+													Génie civil
+												</SelectItem>
+												<SelectItem value="Informatique">
+													Informatique
+												</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
 
 									<div>
@@ -332,7 +421,14 @@ const Resultats = () => {
 									</div>
 
 									<div>
-										<Label>Fichier PDF</Label>
+										<Label>
+											Fichier PDF{" "}
+											{!editingId && (
+												<span className="text-red-500">
+													*
+												</span>
+											)}
+										</Label>
 										<Input
 											type="file"
 											accept="application/pdf"
@@ -350,6 +446,12 @@ const Resultats = () => {
 												{formData.fichierPDF.name}
 											</p>
 										)}
+										{editingId && (
+											<p className="text-xs text-gray-500 mt-1">
+												Laisser vide pour conserver le
+												PDF actuel
+											</p>
+										)}
 									</div>
 
 									<div className="flex gap-2 pt-4">
@@ -358,14 +460,22 @@ const Resultats = () => {
 											variant="outline"
 											onClick={resetForm}
 											className="flex-1 hover:bg-red-600"
+											disabled={isLoading}
 										>
 											Annuler
 										</Button>
 										<Button
 											onClick={handleSubmit}
 											className="flex-1 bg-primary hover:scale-90 transition-all duration-200 text-white"
+											disabled={isLoading}
 										>
-											{editingId ? "Modifier" : "Ajouter"}
+											{isLoading ? (
+												<Loader2 className="w-4 h-4 animate-spin" />
+											) : editingId ? (
+												"Modifier"
+											) : (
+												"Ajouter"
+											)}
 										</Button>
 									</div>
 								</div>
@@ -373,11 +483,27 @@ const Resultats = () => {
 						</Dialog>
 					</div>
 
+					{/* LOADER */}
+					{isLoading && resultats.length === 0 && (
+						<div className="flex justify-center items-center h-64">
+							<Loader2 className="w-8 h-8 animate-spin text-primary" />
+						</div>
+					)}
+
 					{/* LISTE DES RÉSULTATS */}
+					{!isLoading && resultats.length === 0 && (
+						<div className="text-center bg-white py-[8rem] rounded-md">
+							<FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+							<p className="text-gray-500">
+								Aucun résultat pour le moment
+							</p>
+						</div>
+					)}
+
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{resultats.map((r) => (
 							<Card
-								key={r.id}
+								key={r._id}
 								className="p-6 shadow-md hover:shadow-lg transition"
 							>
 								<div className="flex justify-between items-start mb-4">
@@ -390,15 +516,16 @@ const Resultats = () => {
 											variant="ghost"
 											onClick={() => handleEdit(r)}
 											className="p-2 bg-slate-200 hover:bg-primary"
+											disabled={isLoading}
 										>
 											<Edit className="w-4 h-4" />
 										</Button>
 										<Button
 											size="icon"
 											variant="ghost"
-											onClick={() => handleDelete(r.id)}
+											onClick={() => handleDelete(r._id)}
 											className="p-2 bg-slate-200 hover:bg-red-100"
-
+											disabled={isLoading}
 										>
 											<Trash2 className="w-4 h-4 text-red-600" />
 										</Button>
@@ -434,7 +561,6 @@ const Resultats = () => {
 										variant="outline"
 										className="flex-1 hover:bg-primary hover:text-white"
 										onClick={() => handleViewPdf(r.pdf)}
-										
 									>
 										<Eye className="w-6 h-6 mr-2" /> Lire
 									</Button>
@@ -443,7 +569,12 @@ const Resultats = () => {
 										className="flex-1"
 										asChild
 									>
-										<a href={r.pdf} download>
+										<a
+											href={r.pdf}
+											download
+											target="_blank"
+											rel="noopener noreferrer"
+										>
 											<Download className="w-4 h-4 mr-2" />{" "}
 											Télécharger
 										</a>

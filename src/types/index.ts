@@ -7,14 +7,14 @@ export interface Admin {
 }
 
 export interface Resultat {
-  id: string;
-  type: 'Contrôle' | 'Interrogation' | 'Examen';
+  _id: string;
+  categorie: string;
   filiere: string;
   niveau: string;
-  semestre: string;
-  fichierPDF: string;
-  datePublication: string;
-  adminId: string;
+  semestre: number | string;
+  annee: string;
+  pdf: string;
+  createdAt: string;
 }
 
 export interface Evenement {
@@ -58,3 +58,15 @@ export interface User {
   prenom: string,
   email: string
 }
+
+
+export interface Formation {
+  _id: string;
+  titre: string;
+  image: string;
+  description: string;
+  debouche: string[];
+  aptitude: string[];
+  createdAt: string;
+}
+

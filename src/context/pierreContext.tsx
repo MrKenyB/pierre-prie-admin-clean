@@ -63,6 +63,7 @@ export const PierreContextProvider = ({
 
 			if (res.data.success) {
             setConnected(true)
+            getAminData()
          } else {
             setConnected(false)
             navigate('/auth')

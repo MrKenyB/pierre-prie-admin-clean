@@ -22,7 +22,7 @@ import axios, { AxiosError } from "axios";
 
 
 const Auth = () => {
-  
+
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -81,7 +81,7 @@ const Auth = () => {
 	};
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
+		<div className="w-full flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
 			<Card className="w-full max-w-md shadow-lg border-none">
 				<CardHeader className="space-y-4 text-center pb-6">
 					<div className="mx-auto w-32 h-32 flex items-center justify-center">

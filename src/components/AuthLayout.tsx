@@ -2,6 +2,10 @@ import { usePierreHook } from "@/hooks/pierreHook";
 import { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 
+
+
+
+
 const AuthLayout = () => {
 	const navigate = useNavigate();
 	const { connected, loading } = usePierreHook();
@@ -23,14 +27,12 @@ const AuthLayout = () => {
 		);
 	}
 
-	// Si connecté, ne rien afficher (redirection en cours)
 	if (connected) {
 		return null;
 	}
 
-	// Utilisateur non connecté, afficher les pages d'authentification
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
+		<div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
 			<div className="w-full max-w-md">
 				<Outlet />
 			</div>

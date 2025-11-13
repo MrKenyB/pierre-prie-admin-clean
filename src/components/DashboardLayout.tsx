@@ -20,6 +20,7 @@ import { authService } from '@/services/authService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.jpeg';
+import { usePierreHook } from '@/hooks/pierreHook';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -34,16 +35,19 @@ const menuItems = [
 ];
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+
   const navigate = useNavigate();
   const location = useLocation();
-  const admin = authService.getCurrentAdmin();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const {user} = usePierreHook()
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
+    console.log('============ user========================');
+    console.log(user);
+    console.log('====================================');
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
@@ -57,7 +61,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const handleLogout = () => {
     authService.logout();
     toast.success('Déconnexion réussie');
-    navigate('/auth');
+    navigate('/');
   };
 
   return (
@@ -250,7 +254,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <div className="hidden lg:block"></div>
 
             <div className="flex items-center gap-2">
+
               {/* User Profile - Desktop */}
+
               <div className="hidden lg:block relative" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -261,7 +267,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-medium text-slate-800 leading-tight">
-                      {admin?.prenom} {admin?.nom}
+                      {user?.prenom} {user?.nom}
                     </p>
                     <p className="text-xs text-slate-500">Administrateur</p>
                   </div>
@@ -274,14 +280,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 {/* Profile Dropdown */}
                 {isProfileOpen && (
                   <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden">
-                    <div className="bg-blue-600 p-4">
+                    <div className="bg-primary p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
                           <User className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-white">
-                            {admin?.prenom} {admin?.nom}
+                            {user?.prenom} {user?.nom}
                           </p>
                           <p className="text-xs text-blue-100 flex items-center gap-1">
                             <Shield className="w-3 h-3" />
@@ -291,13 +297,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                       </div>
                     </div>
                     
-                    <div className="p-3">
+                    <div className="p-2">
                       <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg">
                         <Mail className="w-4 h-4 text-slate-400" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-slate-500">Email</p>
                           <p className="text-sm text-slate-700 truncate">
-                            {admin?.email || 'admin@institut.com'}
+                            {user?.email}
                           </p>
                         </div>
                       </div>
@@ -306,7 +312,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     <div className="border-t border-slate-100 p-2">
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-500 hover:text-white rounded-lg transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Se déconnecter</span>

@@ -13,11 +13,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   useEffect(() => {
     // Si le chargement est terminé et pas connecté, rediriger
     if (!loading && !connected) {
-      navigate('/auth', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [connected, loading, navigate]);
 
-  // Afficher un loader pendant la vérification
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -26,11 +25,9 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  // Si pas connecté, ne rien afficher (la redirection est en cours)
   if (!connected) {
     return null;
   }
 
-  // Utilisateur connecté, afficher le contenu protégé
   return <>{children}</>;
 };

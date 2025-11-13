@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -13,8 +13,14 @@ import Temoignages from "./pages/Temoignages";
 import NotFound from "./pages/NotFound";
 import Validation from "./pages/Validation";
 import AuthLayout from "./components/AuthLayout";
+import { usePierreHook } from "./hooks/pierreHook";
 
 const App = () => {
+  // const { checkAuth } = usePierreHook()
+  
+  // useEffect(() => {
+  //   checkAuth()
+  // },[])
   return (
     <Routes>
       <Route element={<AuthLayout />}>
