@@ -34,6 +34,8 @@ const menuItems = [
   { icon: MessageSquare, label: 'Témoignages', path: '/temoignages' },
 ];
 
+
+
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navigate = useNavigate();
@@ -45,9 +47,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const {user} = usePierreHook()
 
   useEffect(() => {
-    console.log('============ user========================');
-    console.log(user);
-    console.log('====================================');
+
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
@@ -63,7 +63,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     toast.success('Déconnexion réussie');
     navigate('/');
   };
-
+  
   return (
     <div className="flex min-h-screen w-full bg-slate-50">
       {/* Sidebar Desktop */}
@@ -95,7 +95,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           )}
         </div>
 
-        {/* Navigation */}
+        {/* navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -146,7 +146,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </button>
         </div>
 
-        {/* User section - Desktop sidebar */}
+        {/* User section */}
         {!isSidebarCollapsed && (
           <div className="p-3 border-t border-slate-200">
             <button

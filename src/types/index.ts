@@ -27,12 +27,13 @@ export interface Evenement {
 }
 
 export interface Formation {
-  id: string;
-  nomParcours: string;
+  _id: string;
+  titre: string;
+  image: string;
   description: string;
-  importance: string;
-  debouches: string[];
-  adminId: string;
+  debouche: string[];
+  aptitude: string[];
+  createdAt: string;
 }
 
 export interface Temoignage {
@@ -59,14 +60,12 @@ export interface User {
   email: string
 }
 
-
-export interface Formation {
+export interface Evenement {
   _id: string;
   titre: string;
-  image: string;
   description: string;
-  debouche: string[];
-  aptitude: string[];
+  image: string;
+  adminId: string;
   createdAt: string;
 }
 

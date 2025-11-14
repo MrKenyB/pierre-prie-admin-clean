@@ -37,6 +37,8 @@ import axios from "axios";
 import { Resultat } from "@/types";
 import { usePierreHook } from "@/hooks/pierreHook";
 
+
+
 const Resultats = () => {
 	axios.defaults.withCredentials = true;
 
@@ -46,6 +48,7 @@ const Resultats = () => {
 	const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
 	const [currentPdf, setCurrentPdf] = useState<string>("");
 	const [editingId, setEditingId] = useState<string | null>(null);
+
 	const { backendUrl } = usePierreHook();
 	const [formData, setFormData] = useState({
 		categorie: "Ordinaire",
@@ -86,8 +89,7 @@ const Resultats = () => {
 
 	// CRÉER OU MODIFIER UN RÉSULTAT
 	const handleSubmit = async () => {
-		const { categorie, filiere, niveau, semestre, annee, fichierPDF } =
-			formData;
+		const { categorie, filiere, niveau, semestre, annee, fichierPDF } = formData;
 
 		if (!filiere || !niveau || !semestre || !annee) {
 			toast.error("Veuillez remplir tous les champs");
@@ -115,9 +117,9 @@ const Resultats = () => {
 			}
 
 			if (editingId) {
-				// MODIFIER
+
 				const response = await axios.put(
-					`${backendUrl}/api/resultat/update?id=${editingId}`,
+					`${backendUrl}/api/resultat/update/${editingId}`,
 					data,
 					{
 						headers: {
@@ -126,12 +128,17 @@ const Resultats = () => {
 					}
 				);
 
+				console.log('=========== update =================');
+				console.log(response.data);
+				console.log('====================================');
+
 				if (response.data.success) {
 					toast.success("Résultat modifié avec succès");
 					fetchResultats();
 				}
+
 			} else {
-				// CRÉER
+
 				const response = await axios.post(
 					`${backendUrl}/api/resultat/create`,
 					data,
@@ -152,8 +159,7 @@ const Resultats = () => {
 		} catch (error: any) {
 			console.error("Erreur submit:", error);
 			toast.error(
-				error.response?.data?.message ||
-					"Erreur lors de l'enregistrement"
+				error.response?.data?.message ||"Erreur lors de l'enregistrement"
 			);
 		} finally {
 			setIsLoading(false);
@@ -176,20 +182,12 @@ const Resultats = () => {
 
 	// SUPPRIMER UN RÉSULTAT
 	const handleDelete = async (id: string) => {
-		if (!confirm("Supprimer ce résultat ?")) return;
 
 		try {
 			setIsLoading(true);
-			const token = localStorage.getItem("adminToken");
 
 			const response = await axios.delete(
-				`${backendUrl}/api/resultat/remove?id=${id}`,
-				{
-					headers: {
-						Authorization: `Bearer ${token}`,
-					},
-				}
-			);
+				`${backendUrl}/api/resultat/remove/${id}`);
 
 			if (response.data.success) {
 				toast.success("Résultat supprimé");
