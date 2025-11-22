@@ -31,7 +31,7 @@ export const PierreContextProvider = ({
    const [user, setUser] = useState<User | null>(null);
    const navigate = useNavigate()
 
-	const backendUrl = "https://backend-topaz-omega-18.vercel.app";
+	const backendUrl = "https://backend-lu1xi0bfq-clau-claus-projects.vercel.app";
 	// const backendUrl = "https://api-pierre-prie.onrender.com";
 
 	const logout = async () => {
