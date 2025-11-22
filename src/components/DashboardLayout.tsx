@@ -44,7 +44,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const {user} = usePierreHook()
+  const {user, logout} = usePierreHook()
 
   useEffect(() => {
 
@@ -59,7 +59,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   }, []);
 
   const handleLogout = () => {
-    authService.logout();
+    logout()
     toast.success('Déconnexion réussie');
     navigate('/');
   };
@@ -71,6 +71,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         "hidden lg:flex fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex-col shadow-sm transition-all duration-300 z-40",
         isSidebarCollapsed ? "w-20" : "w-64"
       )}>
+        
         {/* Logo section */}
         <div className="p-4 flex items-center justify-between">
           {!isSidebarCollapsed && (
@@ -254,9 +255,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <div className="hidden lg:block"></div>
 
             <div className="flex items-center gap-2">
-
-              {/* User Profile - Desktop */}
-
               <div className="hidden lg:block relative" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}

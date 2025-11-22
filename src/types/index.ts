@@ -37,13 +37,14 @@ export interface Formation {
 }
 
 export interface Temoignage {
-  id: string;
+  _id: string;
   titre: string;
   description: string;
   image: string;
   video: string;
   datePublication: string;
   adminId: string;
+  createdAt: string
 }
 
 export interface DashboardStats {

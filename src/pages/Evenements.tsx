@@ -382,8 +382,8 @@ const Evenements = () => {
 								</div>
 							</DialogContent>
 						</Dialog>
-          </div>
-          
+			</div>
+			
           {/* LOADER */}
 					{loading && evenements.length === 0 && (
 						<div className="flex justify-center items-center h-[80vh]">

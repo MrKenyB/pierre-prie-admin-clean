@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
@@ -6,20 +7,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { authService } from '@/services/authService';
 import { toast } from 'sonner';
 import logo from '@/assets/logo.jpeg';
+import { usePierreHook } from '@/hooks/pierreHook';
+import axios from 'axios';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
+  const [step, setStep] = useState<'email' | 'password'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { backendUrl } = usePierreHook();
 
+  // Étape 1 : Demande de réinitialisation (envoie l'email)
   const handleRequestReset = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -31,45 +35,39 @@ const ForgotPassword = () => {
       return;
     }
 
-    const result = authService.requestPasswordReset(email);
+    try {
+      const result = await axios.post(`${backendUrl}/api/admin/request-password-reset`, {
+        email
+      });
 
-    if (result.success) {
-      toast.success(result.message);
-      setStep('code');
-    } else {
-      setError(result.message);
-    }
-
-    setIsLoading(false);
-  };
-
-  const handleVerifyCode = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!code || code.length !== 6) {
-      setError('Veuillez entrer un code à 6 caractères');
+      if (result.data.success) {
+        toast.success(result.data.message);
+        setStep('password');
+      } else {
+        setError(result.data.message);
+      }
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      setError(
+        error.response?.data?.message || 
+        'Une erreur est survenue lors de l\'envoi du code'
+      );
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const result = authService.verifyResetCode(email, code);
-
-    if (result.success) {
-      toast.success('Code validé');
-      setStep('password');
-    } else {
-      setError(result.message);
-    }
-
-    setIsLoading(false);
   };
+
 
   const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    if (!code || code.length !== 6) {
+      setError('Veuillez entrer un code à 6 chiffres');
+      setIsLoading(false);
+      return;
+    }
 
     if (!newPassword || newPassword.length < 6) {
       setError('Le mot de passe doit contenir au moins 6 caractères');
@@ -83,16 +81,27 @@ const ForgotPassword = () => {
       return;
     }
 
-    const result = authService.resetPassword(email, code, newPassword);
+    try {
+      const result = await axios.post(`${backendUrl}/api/admin/reset-password`, {
+        otp: code,
+        newPassword
+      });
 
-    if (result.success) {
-      toast.success(result.message);
-      setTimeout(() => navigate('/auth'), 2000);
-    } else {
-      setError(result.message);
+      if (result.data.success) {
+        toast.success(result.data.message);
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        setError(result.data.message);
+      }
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      setError(
+        error.response?.data?.message || 
+        'Une erreur est survenue lors de la réinitialisation'
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -109,13 +118,11 @@ const ForgotPassword = () => {
           <div>
             <CardTitle className="text-xl sm:text-2xl">
               {step === 'email' && 'Mot de passe oublié'}
-              {step === 'code' && 'Vérification du code'}
               {step === 'password' && 'Nouveau mot de passe'}
             </CardTitle>
             <CardDescription className="text-sm sm:text-base mt-2">
               {step === 'email' && 'Entrez votre adresse email pour recevoir un code de réinitialisation'}
-              {step === 'code' && 'Entrez le code reçu par email (consultez la console)'}
-              {step === 'password' && 'Créez votre nouveau mot de passe'}
+              {step === 'password' && 'Entrez le code reçu par email et votre nouveau mot de passe'}
             </CardDescription>
           </div>
         </CardHeader>
@@ -153,7 +160,7 @@ const ForgotPassword = () => {
                 className="w-full bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 transition-opacity"
                 disabled={isLoading}
               >
-                {isLoading ? 'Envoi...' : 'Envoyer le code'}
+                {isLoading ? 'Envoi ...' : 'Envoyer le code'}
               </Button>
 
               <Button
@@ -168,8 +175,8 @@ const ForgotPassword = () => {
             </form>
           )}
 
-          {step === 'code' && (
-            <form onSubmit={handleVerifyCode} className="space-y-4">
+          {step === 'password' && (
+            <form onSubmit={handleResetPassword} className="space-y-4">
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -184,50 +191,15 @@ const ForgotPassword = () => {
                 <Input
                   id="code"
                   type="text"
-                  placeholder="XXXXXX"
+                  placeholder="123456"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setCode(e.target.value)}
                   maxLength={6}
                   className="text-center text-lg font-mono tracking-widest"
                   disabled={isLoading}
                 />
+              
               </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Pour cette démo, le code a été affiché dans la console du navigateur (F12).
-                </AlertDescription>
-              </Alert>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 transition-opacity"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Vérification...' : 'Vérifier le code'}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setStep('email')}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Renvoyer un code
-              </Button>
-            </form>
-          )}
-
-          {step === 'password' && (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
 
               <div className="space-y-2">
                 <Label htmlFor="newPassword" className="text-sm font-medium">
@@ -271,6 +243,22 @@ const ForgotPassword = () => {
                 disabled={isLoading}
               >
                 {isLoading ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setStep('email');
+                  setCode('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setError('');
+                }}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Renvoyer un code
               </Button>
             </form>
           )}

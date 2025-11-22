@@ -8,14 +8,24 @@ import {
 	Award,
 	Users,
 	Clock,
+	Loader2,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatsCard } from "@/components/StatsCard";
 import { dashboardService } from "@/services/dataService";
 import { DashboardStats } from "@/types";
+import { usePierreHook } from "@/hooks/pierreHook";
+import axios from "axios";
+
+
+
 
 const Dashboard = () => {
 
+	const [loading, setLoading] = useState(false);
+	const [appercu, setAppercu] = useState<any[]>([]);
+	const { backendUrl } = usePierreHook()
+	
 	const [stats, setStats] = useState<DashboardStats>({
 		totalResultats: 0,
 		totalEvenements: 0,
@@ -23,19 +33,44 @@ const Dashboard = () => {
 		totalTemoignages: 0,
 	});
 
+	const getHomeData = async () => {
+		setLoading(true)
+		try {
+			const res = await axios.get(`${backendUrl}/api/home/data`)
+
+			if (res.data.success) {
+				setStats({
+					totalResultats: res.data.totalResultats || 0,
+					totalEvenements: res.data.totalActualites || 0,
+					totalFormations: res.data.totalFormations || 0,
+					totalTemoignages: res.data.totalTemoignages || 0,
+				})
+				setAppercu(res.data.appercu || [])
+			}
+		} catch (error) {
+			console.log('====================================');
+			console.log("erreur lors de la recuperation des data");
+			console.log(error)
+			console.log('====================================');
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	useEffect(() => {
-		const loadStats = () => {
-			const data = dashboardService.getStats();
-			setStats(data);
-		};
-
-		loadStats();
-
-		const interval = setInterval(loadStats, 5000);
-		return () => clearInterval(interval);
+		getHomeData()
 	}, []);
 
-	
+
+	if (loading) {
+		return (
+			<DashboardLayout>
+				<div className="flex justify-center items-center h-64">
+					<Loader2 className="w-8 h-8 animate-spin text-secondary" />
+				</div>
+			</DashboardLayout>
+		);
+	}
 
 	return (
 		<DashboardLayout>
@@ -138,49 +173,60 @@ const Dashboard = () => {
 					/>
 				</div>
 
-				{/* Activité récente */}
+				{/* Formations récentes */}
 				<div className="bg-white rounded-2xl border-2 border-slate-100 p-6 shadow-sm">
 					<h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-						<Clock className="w-5 h-5 text-primary" />
-						Activité récente
+						<GraduationCap className="w-5 h-5 text-primary" />
+						Dernières formations ajoutées
 					</h2>
-					<div className="space-y-3">
-						<div className="flex items-center gap-4 p-3 bg-slate-100 rounded-lg">
-							<div className="w-2 h-2 bg-primary rounded-full"></div>
-							<div className="flex-1">
-								<p className="text-sm font-medium text-slate-800">
-									Résultats publiés - BTS Informatique 2024
-								</p>
-								<p className="text-xs text-slate-500">
-									Il y a 2 heures
-								</p>
-							</div>
+					{appercu.length > 0 ? (
+						<div className="space-y-3">
+							{appercu.map((formation, index) => (
+								<div key={formation._id} className={`flex items-start gap-4 p-4 rounded-lg ${
+									index === 0 ? 'bg-slate-100' : 'bg-slate-50'
+								}`}>
+									<div className="flex-shrink-0">
+										<img 
+											src={formation.image} 
+											alt={formation.titre}
+											className="w-16 h-16 object-cover rounded-lg"
+										/>
+									</div>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-start justify-between gap-2 mb-2">
+											<h3 className="text-sm font-semibold text-slate-800 line-clamp-1">
+												{formation.titre}
+											</h3>
+											<div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${
+												index === 0 ? 'bg-primary' : 
+												index === 1 ? 'bg-green-600' : 
+												'bg-purple-600'
+											}`}></div>
+										</div>
+										<p className="text-xs text-slate-600 line-clamp-2 mb-2">
+											{formation.description}
+										</p>
+										<div className="flex items-center gap-4 text-xs text-slate-500">
+											<span className="flex items-center gap-1">
+												<Users className="w-3 h-3" />
+												{formation.debouche?.length || 0} débouchés
+											</span>
+											<span className="flex items-center gap-1">
+												<Award className="w-3 h-3" />
+												{formation.aptitude?.length || 0} compétences
+											</span>
+										</div>
+									</div>
+								</div>
+							))}
 						</div>
-						<div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-							<div className="w-2 h-2 bg-green-600 rounded-full"></div>
-							<div className="flex-1">
-								<p className="text-sm font-medium text-slate-800">
-									Événement ajouté - Journée Portes Ouvertes
-								</p>
-								<p className="text-xs text-slate-500">
-									Il y a 5 heures
-								</p>
-							</div>
-						</div>
-						<div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
-							<div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-							<div className="flex-1">
-								<p className="text-sm font-medium text-slate-800">
-									Formation modifiée - Licence Comptabilité
-								</p>
-								<p className="text-xs text-slate-500">
-									Hier à 14h30
-								</p>
-							</div>
-						</div>
-					</div>
+					) : (
+						<p className="text-slate-500 text-sm text-center py-8">
+							Aucune formation récente
+						</p>
+					)}
 				</div>
-      </div>
+			</div>
 		</DashboardLayout>
 	);
 };
