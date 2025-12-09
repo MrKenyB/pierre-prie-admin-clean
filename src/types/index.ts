@@ -29,6 +29,7 @@ export interface Evenement {
 export interface Formation {
   _id: string;
   titre: string;
+  classe: string;
   image: string;
   description: string;
   debouche: string[];
