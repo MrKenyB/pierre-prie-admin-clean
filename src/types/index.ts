@@ -11,10 +11,12 @@ export interface Resultat {
   categorie: string;
   filiere: string;
   niveau: string;
+  security: boolean,
   semestre: number | string;
   annee: string;
   pdf: string;
   createdAt: string;
+
 }
 
 export interface Evenement {

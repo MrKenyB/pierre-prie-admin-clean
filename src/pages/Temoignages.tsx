@@ -12,6 +12,9 @@ import {
 	Play,
 	X,
 	Eye,
+	Upload,
+	Image as ImageIcon,
+	Video as VideoIcon,
 } from "lucide-react";
 import axios from "axios";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -64,6 +67,10 @@ const Temoignages = () => {
 		videoFile: null as File | null,
 	});
 
+	// États pour les previews
+	const [imagePreview, setImagePreview] = useState<string | null>(null);
+	const [videoPreview, setVideoPreview] = useState<string | null>(null);
+
 	const API_URL = `${backendUrl}/api/temoignage`;
 
 	const [currentPage, setCurrentPage] = useState(1);
@@ -75,6 +82,14 @@ const Temoignages = () => {
 	useEffect(() => {
 		loadTemoignages();
 	}, [currentPage, searchTerm]);
+
+	// Nettoyer les URLs de preview quand le composant se démonte
+	useEffect(() => {
+		return () => {
+			if (imagePreview) URL.revokeObjectURL(imagePreview);
+			if (videoPreview) URL.revokeObjectURL(videoPreview);
+		};
+	}, [imagePreview, videoPreview]);
 
 	const loadTemoignages = async () => {
 		setIsLoading(true);
@@ -112,6 +127,16 @@ const Temoignages = () => {
 			videoFile: null,
 		});
 		setSelectedTemoignage(null);
+		
+		// Nettoyer les previews
+		if (imagePreview) {
+			URL.revokeObjectURL(imagePreview);
+			setImagePreview(null);
+		}
+		if (videoPreview) {
+			URL.revokeObjectURL(videoPreview);
+			setVideoPreview(null);
+		}
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -173,6 +198,17 @@ const Temoignages = () => {
 			imageFile: null,
 			videoFile: null,
 		});
+		
+		// Afficher l'image existante comme preview
+		if (temoignage.image) {
+			setImagePreview(temoignage.image);
+		}
+		
+		// Afficher la vidéo existante comme preview
+		if (temoignage.video) {
+			setVideoPreview(temoignage.video);
+		}
+		
 		setIsDialogOpen(true);
 	};
 
@@ -217,6 +253,15 @@ const Temoignages = () => {
 				toast.error("L'image ne doit pas dépasser 5 Mo");
 				return;
 			}
+			
+			// Nettoyer l'ancienne preview
+			if (imagePreview && !imagePreview.startsWith('http')) {
+				URL.revokeObjectURL(imagePreview);
+			}
+			
+			// Créer une nouvelle preview
+			const previewUrl = URL.createObjectURL(file);
+			setImagePreview(previewUrl);
 			setFormData({ ...formData, imageFile: file });
 		}
 	};
@@ -232,8 +277,33 @@ const Temoignages = () => {
 				toast.error("La vidéo ne doit pas dépasser 50 Mo");
 				return;
 			}
+			
+			// Nettoyer l'ancienne preview
+			if (videoPreview && !videoPreview.startsWith('http')) {
+				URL.revokeObjectURL(videoPreview);
+			}
+			
+			// Créer une nouvelle preview
+			const previewUrl = URL.createObjectURL(file);
+			setVideoPreview(previewUrl);
 			setFormData({ ...formData, videoFile: file });
 		}
+	};
+
+	const removeImagePreview = () => {
+		if (imagePreview && !imagePreview.startsWith('http')) {
+			URL.revokeObjectURL(imagePreview);
+		}
+		setImagePreview(null);
+		setFormData({ ...formData, imageFile: null });
+	};
+
+	const removeVideoPreview = () => {
+		if (videoPreview && !videoPreview.startsWith('http')) {
+			URL.revokeObjectURL(videoPreview);
+		}
+		setVideoPreview(null);
+		setFormData({ ...formData, videoFile: null });
 	};
 
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -321,61 +391,145 @@ const Temoignages = () => {
 									/>
 								</div>
 
+								{/* Section Image avec Preview */}
 								<div className="space-y-2">
 									<Label htmlFor="image">
 										Image {!selectedTemoignage && "*"}
 									</Label>
-									<Input
-										id="image"
-										type="file"
-										accept="image/*"
-										onChange={handleImageChange}
-										required={!selectedTemoignage}
-									/>
+									
+									{!imagePreview ? (
+										<div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
+											<label htmlFor="image" className="cursor-pointer">
+												<div className="flex flex-col items-center gap-2">
+													<div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+														<ImageIcon className="w-6 h-6 text-gray-400" />
+													</div>
+													<div>
+														<p className="text-sm font-medium text-gray-700">
+															Cliquez pour télécharger une image
+														</p>
+														<p className="text-xs text-gray-500 mt-1">
+															PNG, JPG ou WEBP (max. 5 Mo)
+														</p>
+													</div>
+												</div>
+											</label>
+											<Input
+												id="image"
+												type="file"
+												accept="image/*"
+												onChange={handleImageChange}
+												className="hidden"
+												required={!selectedTemoignage}
+											/>
+										</div>
+									) : (
+										<div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
+											<img
+												src={imagePreview}
+												alt="Aperçu"
+												className="w-full h-64 object-cover"
+											/>
+											<div className="absolute top-2 right-2 flex gap-2">
+												<label htmlFor="image" className="cursor-pointer">
+													<div className="bg-white/90 hover:bg-white p-2 rounded-lg shadow-lg transition-colors">
+														<Upload className="w-5 h-5 text-gray-700" />
+													</div>
+												</label>
+												<button
+													type="button"
+													onClick={removeImagePreview}
+													className="bg-red-500/90 hover:bg-red-500 p-2 rounded-lg shadow-lg transition-colors"
+												>
+													<X className="w-5 h-5 text-white" />
+												</button>
+											</div>
+											<Input
+												id="image"
+												type="file"
+												accept="image/*"
+												onChange={handleImageChange}
+												className="hidden"
+											/>
+										</div>
+									)}
+									
 									{formData.imageFile && (
-										<p className="text-sm text-muted-foreground">
-											Fichier sélectionné :{" "}
+										<p className="text-sm text-muted-foreground flex items-center gap-1">
+											<ImageIcon className="w-4 h-4" />
 											{formData.imageFile.name}
 										</p>
 									)}
-									{selectedTemoignage &&
-										selectedTemoignage.image &&
-										!formData.imageFile && (
-											<p className="text-sm text-muted-foreground">
-												Image actuelle :{" "}
-												{selectedTemoignage.image
-													.split("/")
-													.pop()}
-											</p>
-										)}
 								</div>
 
+								{/* Section Vidéo avec Preview */}
 								<div className="space-y-2">
 									<Label htmlFor="video">
 										Vidéo (optionnel)
 									</Label>
-									<Input
-										id="video"
-										type="file"
-										accept="video/*"
-										onChange={handleVideoChange}
-									/>
+									
+									{!videoPreview ? (
+										<div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
+											<label htmlFor="video" className="cursor-pointer">
+												<div className="flex flex-col items-center gap-2">
+													<div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+														<VideoIcon className="w-6 h-6 text-gray-400" />
+													</div>
+													<div>
+														<p className="text-sm font-medium text-gray-700">
+															Cliquez pour télécharger une vidéo
+														</p>
+														<p className="text-xs text-gray-500 mt-1">
+															MP4, MOV ou WEBM (max. 50 Mo)
+														</p>
+													</div>
+												</div>
+											</label>
+											<Input
+												id="video"
+												type="file"
+												accept="video/*"
+												onChange={handleVideoChange}
+												className="hidden"
+											/>
+										</div>
+									) : (
+										<div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
+											<video
+												src={videoPreview}
+												className="w-full h-64 object-cover bg-black"
+												controls
+											/>
+											<div className="absolute top-2 right-2 flex gap-2">
+												<label htmlFor="video" className="cursor-pointer">
+													<div className="bg-white/90 hover:bg-white p-2 rounded-lg shadow-lg transition-colors">
+														<Upload className="w-5 h-5 text-gray-700" />
+													</div>
+												</label>
+												<button
+													type="button"
+													onClick={removeVideoPreview}
+													className="bg-red-500/90 hover:bg-red-500 p-2 rounded-lg shadow-lg transition-colors"
+												>
+													<X className="w-5 h-5 text-white" />
+												</button>
+											</div>
+											<Input
+												id="video"
+												type="file"
+												accept="video/*"
+												onChange={handleVideoChange}
+												className="hidden"
+											/>
+										</div>
+									)}
+									
 									{formData.videoFile && (
-										<p className="text-sm text-muted-foreground">
-											Fichier sélectionné :{" "}
+										<p className="text-sm text-muted-foreground flex items-center gap-1">
+											<VideoIcon className="w-4 h-4" />
 											{formData.videoFile.name}
 										</p>
 									)}
-									{selectedTemoignage &&
-										selectedTemoignage.video &&
-										!formData.videoFile && (
-											<p className="text-sm text-muted-foreground">
-												Vidéo actuelle :{" "}
-												{selectedTemoignage.video
-													.split("/")
-													.pop()}
-											</p>
-										)}
 								</div>
 
 								<div className="w-full flex justify-between gap-3 pt-4">
@@ -413,20 +567,6 @@ const Temoignages = () => {
 					</Dialog>
 				</div>
 
-				{/* barre de recherche */}
-				{/* <div className="mb-4">
-					<div className="relative">
-						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-						<Input
-							type="text"
-							placeholder="Rechercher un témoignage..."
-							value={searchTerm}
-							onChange={handleSearchChange}
-							className="pl-10"
-						/>
-					</div>
-				</div> */}
-
 				{isLoading ? (
 					<div className="flex items-center justify-center p-12">
 						<Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -445,14 +585,12 @@ const Temoignages = () => {
 					</div>
 				) : (
 					<>
-						{/* Grille de cards */}
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{temoignages.map((temoignage) => (
 								<div
 									key={temoignage._id}
 									className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
 								>
-									{/* Image */}
 									<div className="relative h-48 w-full overflow-hidden bg-muted">
 										{temoignage.image ? (
 											<img
@@ -465,9 +603,13 @@ const Temoignages = () => {
 												<MessageSquare className="w-12 h-12 text-muted-foreground" />
 											</div>
 										)}
+										{temoignage.video && (
+											<div className="absolute bottom-2 right-2 bg-black/70 p-2 rounded-full">
+												<Play className="w-4 h-4 text-white" />
+											</div>
+										)}
 									</div>
 
-									{/* Contenu */}
 									<div className="p-4 space-y-3">
 										<div>
 											<h3 className="font-semibold text-lg line-clamp-1 mb-1">
@@ -476,21 +618,21 @@ const Temoignages = () => {
 											<p className="text-sm text-muted-foreground line-clamp-2">
 												{temoignage.description}
 											</p>
-                    </div>
-                    
-                    <div>
+										</div>
+										
+										<div>
 											<p className="text-sm text-muted-foreground line-clamp-2">
-                        Publié le{" "}
-                        {new Date(
-                          temoignage.createdAt ||
-                            temoignage.datePublication
-                        ).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
+												Publié le{" "}
+												{new Date(
+													temoignage.createdAt ||
+														temoignage.datePublication
+												).toLocaleDateString("fr-FR", {
+													day: "numeric",
+													month: "long",
+													year: "numeric",
+												})}
+											</p>
+										</div>
 
 										<div className="flex items-center justify-between pt-2 border-t gap-2">
 											<Button
@@ -519,14 +661,14 @@ const Temoignages = () => {
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-8 w-8 hover:bg-red-500  hover:text-white"
+													className="h-8 w-8 hover:bg-red-500 hover:text-white"
 													onClick={() =>
 														openDeleteDialog(
 															temoignage._id
 														)
 													}
 												>
-													<Trash2 className="w-4 h-4  hover:text-white " />
+													<Trash2 className="w-4 h-4" />
 												</Button>
 											</div>
 										</div>
@@ -535,7 +677,6 @@ const Temoignages = () => {
 							))}
 						</div>
 
-						{/* Pagination */}
 						{totalPages > 1 && (
 							<div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
 								<p className="text-sm text-muted-foreground">
@@ -579,7 +720,6 @@ const Temoignages = () => {
 					</>
 				)}
 
-				{/* Dialog de visualisation du témoignage */}
 				<Dialog
 					open={isViewDialogOpen}
 					onOpenChange={setIsViewDialogOpen}
@@ -605,7 +745,6 @@ const Temoignages = () => {
 								</DialogHeader>
 
 								<div className="space-y-4">
-									{/* Image */}
 									{viewTemoignage.image && (
 										<div className="w-full h-64 rounded-lg overflow-hidden">
 											<img
@@ -616,14 +755,12 @@ const Temoignages = () => {
 										</div>
 									)}
 
-									{/* Description */}
 									<div className="prose prose-sm max-w-none">
 										<p className="text-foreground whitespace-pre-wrap">
 											{viewTemoignage.description}
 										</p>
 									</div>
 
-									{/* Bouton vidéo */}
 									{viewTemoignage.video && (
 										<Button
 											onClick={() =>
@@ -642,7 +779,6 @@ const Temoignages = () => {
 					</DialogContent>
 				</Dialog>
 
-				{/* Dialog pour la vidéo */}
 				<Dialog
 					open={isVideoDialogOpen}
 					onOpenChange={setIsVideoDialogOpen}
@@ -672,7 +808,6 @@ const Temoignages = () => {
 					</DialogContent>
 				</Dialog>
 
-				{/* Dialog de suppression */}
 				<AlertDialog
 					open={isDeleteDialogOpen}
 					onOpenChange={setIsDeleteDialogOpen}

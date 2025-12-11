@@ -11,6 +11,9 @@ import {
 	Loader2,
 	Eye,
 	X,
+	Upload,
+	Lock,
+	Unlock,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import axios from "axios";
 import { Resultat } from "@/types";
@@ -40,6 +44,7 @@ import { usePierreHook } from "@/hooks/pierreHook";
 
 
 const Resultats = () => {
+
 	axios.defaults.withCredentials = true;
 
 	const [resultats, setResultats] = useState<Resultat[]>([]);
@@ -48,6 +53,7 @@ const Resultats = () => {
 	const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
 	const [currentPdf, setCurrentPdf] = useState<string>("");
 	const [editingId, setEditingId] = useState<string | null>(null);
+	const [pdfPreview, setPdfPreview] = useState<string | null>(null);
 
 	const { backendUrl } = usePierreHook();
 	const [formData, setFormData] = useState({
@@ -57,11 +63,20 @@ const Resultats = () => {
 		semestre: "",
 		annee: "",
 		fichierPDF: null as File | null,
+		security: false,
+		password: "",
 	});
 
 	useEffect(() => {
 		fetchResultats();
 	}, []);
+
+	// Nettoyer l'URL de preview quand le composant se démonte
+	useEffect(() => {
+		return () => {
+			if (pdfPreview) URL.revokeObjectURL(pdfPreview);
+		};
+	}, [pdfPreview]);
 
 	const fetchResultats = async () => {
 		try {
@@ -87,9 +102,42 @@ const Resultats = () => {
 		}
 	};
 
+	const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			if (file.type !== "application/pdf") {
+				toast.error("Veuillez sélectionner un fichier PDF valide");
+				return;
+			}
+			if (file.size > 10 * 1024 * 1024) {
+				toast.error("Le fichier ne doit pas dépasser 10 Mo");
+				return;
+			}
+
+			// Nettoyer l'ancienne preview
+			if (pdfPreview && !pdfPreview.startsWith("http")) {
+				URL.revokeObjectURL(pdfPreview);
+			}
+
+			// Créer une nouvelle preview
+			const previewUrl = URL.createObjectURL(file);
+			setPdfPreview(previewUrl);
+			setFormData({ ...formData, fichierPDF: file });
+		}
+	};
+
+	const removePdfPreview = () => {
+		if (pdfPreview && !pdfPreview.startsWith("http")) {
+			URL.revokeObjectURL(pdfPreview);
+		}
+		setPdfPreview(null);
+		setFormData({ ...formData, fichierPDF: null });
+	};
+
 	// CRÉER OU MODIFIER UN RÉSULTAT
 	const handleSubmit = async () => {
-		const { categorie, filiere, niveau, semestre, annee, fichierPDF } = formData;
+		const { categorie, filiere, niveau, semestre, annee, fichierPDF, security, password } =
+			formData;
 
 		if (!filiere || !niveau || !semestre || !annee) {
 			toast.error("Veuillez remplir tous les champs");
@@ -102,6 +150,12 @@ const Resultats = () => {
 			return;
 		}
 
+		// Vérifier le mot de passe si sécurité activée
+		if (security && !password.trim()) {
+			toast.error("Veuillez entrer un mot de passe");
+			return;
+		}
+
 		try {
 			setIsLoading(true);
 
@@ -111,13 +165,17 @@ const Resultats = () => {
 			data.append("niveau", niveau);
 			data.append("semestre", semestre);
 			data.append("annee", annee);
+			data.append("security", security.toString());
+			
+			if (security) {
+				data.append("password", password);
+			}
 
 			if (fichierPDF) {
 				data.append("pdf", fichierPDF);
 			}
 
 			if (editingId) {
-
 				const response = await axios.put(
 					`${backendUrl}/api/resultat/update/${editingId}`,
 					data,
@@ -128,17 +186,15 @@ const Resultats = () => {
 					}
 				);
 
-				console.log('=========== update =================');
+				console.log("=========== update =================");
 				console.log(response.data);
-				console.log('====================================');
+				console.log("====================================");
 
 				if (response.data.success) {
 					toast.success("Résultat modifié avec succès");
 					fetchResultats();
 				}
-
 			} else {
-
 				const response = await axios.post(
 					`${backendUrl}/api/resultat/create`,
 					data,
@@ -159,7 +215,8 @@ const Resultats = () => {
 		} catch (error: any) {
 			console.error("Erreur submit:", error);
 			toast.error(
-				error.response?.data?.message ||"Erreur lors de l'enregistrement"
+				error.response?.data?.message ||
+					"Erreur lors de l'enregistrement"
 			);
 		} finally {
 			setIsLoading(false);
@@ -175,19 +232,30 @@ const Resultats = () => {
 			semestre: r.semestre.toString(),
 			annee: r.annee,
 			fichierPDF: null,
+			security: r.security || false,
+			password: "",
 		});
 		setEditingId(r._id);
+		
+		if (r.pdf) {
+			setPdfPreview(r.pdf);
+		}
+		
 		setIsDialogOpen(true);
 	};
 
 	// SUPPRIMER UN RÉSULTAT
 	const handleDelete = async (id: string) => {
+		if (!confirm("Êtes-vous sûr de vouloir supprimer ce résultat ?")) {
+			return;
+		}
 
 		try {
 			setIsLoading(true);
 
 			const response = await axios.delete(
-				`${backendUrl}/api/resultat/remove/${id}`);
+				`${backendUrl}/api/resultat/remove/${id}`
+			);
 
 			if (response.data.success) {
 				toast.success("Résultat supprimé");
@@ -196,7 +264,8 @@ const Resultats = () => {
 		} catch (error: any) {
 			console.error("Erreur delete:", error);
 			toast.error(
-				error.response?.data?.message || "Erreur lors de la suppression"
+				error.response?.data?.message ||
+					"Erreur lors de la suppression"
 			);
 		} finally {
 			setIsLoading(false);
@@ -216,9 +285,17 @@ const Resultats = () => {
 			semestre: "",
 			annee: "",
 			fichierPDF: null,
+			security: false,
+			password: "",
 		});
 		setEditingId(null);
 		setIsDialogOpen(false);
+
+		// Nettoyer la preview
+		if (pdfPreview && !pdfPreview.startsWith("http")) {
+			URL.revokeObjectURL(pdfPreview);
+		}
+		setPdfPreview(null);
 	};
 
 	const annees = Array.from({ length: 100 }, (_, i) => 2000 + i);
@@ -241,7 +318,10 @@ const Resultats = () => {
 
 						<Dialog
 							open={isDialogOpen}
-							onOpenChange={setIsDialogOpen}
+							onOpenChange={(open) => {
+								setIsDialogOpen(open);
+								if (!open) resetForm();
+							}}
 						>
 							<DialogTrigger asChild>
 								<Button className="gap-2 bg-primary hover:scale-75 transition-all duration-200 cursor-pointer text-white mt-4 sm:mt-0">
@@ -250,7 +330,7 @@ const Resultats = () => {
 								</Button>
 							</DialogTrigger>
 
-							<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+							<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 								<DialogHeader>
 									<DialogTitle>
 										{editingId
@@ -289,16 +369,6 @@ const Resultats = () => {
 										</Select>
 									</div>
 
-									{/* <div>
-										<Label>Filière</Label>
-										<Input
-											value={formData.filiere}
-											onChange={(e) =>
-												setFormData({ ...formData, filiere: e.target.value })
-											}
-											placeholder="Ex: Informatique, Gestion..."
-										/>
-									</div> */}
 									<div>
 										<Label>Filière</Label>
 										<Select
@@ -418,7 +488,8 @@ const Resultats = () => {
 										</Select>
 									</div>
 
-									<div>
+									{/* Section PDF avec Preview */}
+									<div className="space-y-2">
 										<Label>
 											Fichier PDF{" "}
 											{!editingId && (
@@ -427,28 +498,159 @@ const Resultats = () => {
 												</span>
 											)}
 										</Label>
-										<Input
-											type="file"
-											accept="application/pdf"
-											onChange={(e) =>
-												setFormData({
-													...formData,
-													fichierPDF:
-														e.target.files?.[0] ||
-														null,
-												})
-											}
-										/>
+
+										{!pdfPreview ? (
+											<div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
+												<label
+													htmlFor="pdf"
+													className="cursor-pointer"
+												>
+													<div className="flex flex-col items-center gap-2">
+														<div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+															<FileText className="w-6 h-6 text-gray-400" />
+														</div>
+														<div>
+															<p className="text-sm font-medium text-gray-700">
+																Cliquez pour
+																télécharger un
+																PDF
+															</p>
+															<p className="text-xs text-gray-500 mt-1">
+																PDF (max. 10
+																Mo)
+															</p>
+														</div>
+													</div>
+												</label>
+												<Input
+													id="pdf"
+													type="file"
+													accept="application/pdf"
+													onChange={handlePdfChange}
+													className="hidden"
+													required={!editingId}
+												/>
+											</div>
+										) : (
+											<div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
+												<div className="bg-gray-100 p-4 flex items-center justify-center min-h-[200px]">
+													<div className="text-center">
+														<FileText className="w-16 h-16 text-primary mx-auto mb-2" />
+														<p className="text-sm font-medium text-gray-700">
+															{formData
+																.fichierPDF
+																?.name ||
+																"Document PDF"}
+														</p>
+														<p className="text-xs text-gray-500 mt-1">
+															Aperçu disponible
+															après
+															téléchargement
+														</p>
+													</div>
+												</div>
+												<div className="absolute top-2 right-2 flex gap-2">
+													<label
+														htmlFor="pdf"
+														className="cursor-pointer"
+													>
+														<div className="bg-white/90 hover:bg-white p-2 rounded-lg shadow-lg transition-colors">
+															<Upload className="w-5 h-5 text-gray-700" />
+														</div>
+													</label>
+													<button
+														type="button"
+														onClick={
+															removePdfPreview
+														}
+														className="bg-red-500/90 hover:bg-red-500 p-2 rounded-lg shadow-lg transition-colors"
+													>
+														<X className="w-5 h-5 text-white" />
+													</button>
+												</div>
+												<Input
+													id="pdf"
+													type="file"
+													accept="application/pdf"
+													onChange={handlePdfChange}
+													className="hidden"
+												/>
+											</div>
+										)}
+
 										{formData.fichierPDF && (
-											<p className="text-xs text-gray-600 mt-1">
-												{formData.fichierPDF.name}
+											<p className="text-sm text-muted-foreground flex items-center gap-1">
+												<FileText className="w-4 h-4" />
+												{formData.fichierPDF.name} (
+												{(
+													formData.fichierPDF.size /
+													1024 /
+													1024
+												).toFixed(2)}{" "}
+												Mo)
 											</p>
 										)}
-										{editingId && (
-											<p className="text-xs text-gray-500 mt-1">
-												Laisser vide pour conserver le
-												PDF actuel
-											</p>
+									</div>
+
+									{/* Section Sécurité */}
+									<div className="space-y-3 pt-2 border-t">
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="security"
+												checked={formData.security}
+												onCheckedChange={(checked) =>
+													setFormData({
+														...formData,
+														security:
+															checked as boolean,
+														password: checked
+															? formData.password
+															: "",
+													})
+												}
+											/>
+											<Label
+												htmlFor="security"
+												className="flex items-center gap-2 cursor-pointer"
+											>
+												{formData.security ? (
+													<Lock className="w-4 h-4 text-primary" />
+												) : (
+													<Unlock className="w-4 h-4 text-gray-400" />
+												)}
+												Sécuriser le fichier avec un
+												mot de passe
+											</Label>
+										</div>
+
+										{formData.security && (
+											<div className="pl-6 space-y-2 animate-in slide-in-from-top-2">
+												<Label htmlFor="password">
+													Mot de passe *
+												</Label>
+												<Input
+													id="password"
+													type="password"
+													value={formData.password}
+													onChange={(e) =>
+														setFormData({
+															...formData,
+															password:
+																e.target.value,
+														})
+													}
+													placeholder="Entrez un mot de passe sécurisé"
+													required={
+														formData.security
+													}
+													className="border-primary/50 focus:border-primary"
+												/>
+												<p className="text-xs text-gray-500">
+													Ce mot de passe sera
+													nécessaire pour accéder au
+													document
+												</p>
+											</div>
 										)}
 									</div>
 
@@ -457,7 +659,7 @@ const Resultats = () => {
 											type="button"
 											variant="outline"
 											onClick={resetForm}
-											className="flex-1 hover:bg-red-600"
+											className="flex-1 hover:bg-red-600 hover:text-white"
 											disabled={isLoading}
 										>
 											Annuler
@@ -505,15 +707,20 @@ const Resultats = () => {
 								className="p-6 shadow-md hover:shadow-lg transition"
 							>
 								<div className="flex justify-between items-start mb-4">
-									<div className="w-12 h-12 bg-primary text-white rounded-lg flex items-center justify-center">
+									<div className="w-12 h-12 bg-primary text-white rounded-lg flex items-center justify-center relative">
 										<FileText className="w-6 h-6" />
+										{r.security && (
+											<div className="absolute -top-1 -right-1 bg-amber-500 rounded-full p-1">
+												<Lock className="w-3 h-3 text-white" />
+											</div>
+										)}
 									</div>
 									<div className="flex gap-2">
 										<Button
 											size="icon"
 											variant="ghost"
 											onClick={() => handleEdit(r)}
-											className="p-2 bg-slate-200 hover:bg-primary"
+											className="p-2 bg-slate-200 hover:bg-primary hover:text-white"
 											disabled={isLoading}
 										>
 											<Edit className="w-4 h-4" />
@@ -521,7 +728,9 @@ const Resultats = () => {
 										<Button
 											size="icon"
 											variant="ghost"
-											onClick={() => handleDelete(r._id)}
+											onClick={() =>
+												handleDelete(r._id)
+											}
 											className="p-2 bg-slate-200 hover:bg-red-100"
 											disabled={isLoading}
 										>
@@ -531,8 +740,11 @@ const Resultats = () => {
 								</div>
 
 								<div className="space-y-1">
-									<h3 className="font-semibold text-lg text-gray-900">
+									<h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
 										{r.categorie}
+										{r.security && (
+											<Lock className="w-4 h-4 text-amber-500" />
+										)}
 									</h3>
 									<p className="text-sm text-gray-600">
 										Filière : {r.filiere}
