@@ -14,6 +14,7 @@ import {
 	Upload,
 	Lock,
 	Unlock,
+	ShieldAlert,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -41,10 +42,7 @@ import axios from "axios";
 import { Resultat } from "@/types";
 import { usePierreHook } from "@/hooks/pierreHook";
 
-
-
 const Resultats = () => {
-
 	axios.defaults.withCredentials = true;
 
 	const [resultats, setResultats] = useState<Resultat[]>([]);
@@ -54,6 +52,12 @@ const Resultats = () => {
 	const [currentPdf, setCurrentPdf] = useState<string>("");
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+
+	// États pour la modal de mot de passe
+	const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+	const [passwordInput, setPasswordInput] = useState("");
+	const [selectedResultatId, setSelectedResultatId] = useState<string>("");
+	const [isVerifying, setIsVerifying] = useState(false);
 
 	const { backendUrl } = usePierreHook();
 	const [formData, setFormData] = useState({
@@ -71,7 +75,6 @@ const Resultats = () => {
 		fetchResultats();
 	}, []);
 
-	// Nettoyer l'URL de preview quand le composant se démonte
 	useEffect(() => {
 		return () => {
 			if (pdfPreview) URL.revokeObjectURL(pdfPreview);
@@ -85,9 +88,6 @@ const Resultats = () => {
 				`${backendUrl}/api/resultat/get-all`
 			);
 
-			console.log("===============resultats================");
-			console.log(response.data);
-			console.log("====================================");
 			if (response.data.success) {
 				setResultats(response.data.resultats);
 				toast.success("Résultats chargés");
@@ -114,12 +114,10 @@ const Resultats = () => {
 				return;
 			}
 
-			// Nettoyer l'ancienne preview
 			if (pdfPreview && !pdfPreview.startsWith("http")) {
 				URL.revokeObjectURL(pdfPreview);
 			}
 
-			// Créer une nouvelle preview
 			const previewUrl = URL.createObjectURL(file);
 			setPdfPreview(previewUrl);
 			setFormData({ ...formData, fichierPDF: file });
@@ -134,7 +132,6 @@ const Resultats = () => {
 		setFormData({ ...formData, fichierPDF: null });
 	};
 
-	// CRÉER OU MODIFIER UN RÉSULTAT
 	const handleSubmit = async () => {
 		const { categorie, filiere, niveau, semestre, annee, fichierPDF, security, password } =
 			formData;
@@ -144,13 +141,11 @@ const Resultats = () => {
 			return;
 		}
 
-		// Si création, le PDF est obligatoire
 		if (!editingId && !fichierPDF) {
 			toast.error("Veuillez sélectionner un fichier PDF");
 			return;
 		}
 
-		// Vérifier le mot de passe si sécurité activée
 		if (security && !password.trim()) {
 			toast.error("Veuillez entrer un mot de passe");
 			return;
@@ -186,10 +181,6 @@ const Resultats = () => {
 					}
 				);
 
-				console.log("=========== update =================");
-				console.log(response.data);
-				console.log("====================================");
-
 				if (response.data.success) {
 					toast.success("Résultat modifié avec succès");
 					fetchResultats();
@@ -223,7 +214,6 @@ const Resultats = () => {
 		}
 	};
 
-	// PRÉPARER LA MODIFICATION
 	const handleEdit = (r: Resultat) => {
 		setFormData({
 			categorie: r.categorie,
@@ -244,7 +234,6 @@ const Resultats = () => {
 		setIsDialogOpen(true);
 	};
 
-	// SUPPRIMER UN RÉSULTAT
 	const handleDelete = async (id: string) => {
 		if (!confirm("Êtes-vous sûr de vouloir supprimer ce résultat ?")) {
 			return;
@@ -272,9 +261,72 @@ const Resultats = () => {
 		}
 	};
 
-	const handleViewPdf = (url: string) => {
-		toast.info("Ouverture du document...");
-		window.open(url, "_blank");
+	// ✅ Gestion de l'accès au PDF (sécurisé ou non)
+	const handleViewPdf = (resultat: Resultat) => {
+		if (resultat.security) {
+			// Document sécurisé : ouvrir la modal de mot de passe
+			setSelectedResultatId(resultat._id);
+			setPasswordInput("");
+			setIsPasswordDialogOpen(true);
+		} else {
+			// Document non sécurisé : ouvrir directement
+			if (resultat.pdf) {
+				toast.info("Ouverture du document...");
+				window.open(resultat.pdf, "_blank");
+			} else {
+				toast.error("URL du PDF non disponible");
+			}
+		}
+	};
+
+	const handleVerifyPassword = async () => {
+		if (!passwordInput.trim()) {
+			toast.error("Veuillez entrer le mot de passe");
+			return;
+		}
+
+		try {
+			setIsVerifying(true);
+
+			const response = await axios.post(
+				`${backendUrl}/api/resultat/verify-password/${selectedResultatId}`,
+				{ password: passwordInput }
+			);
+
+			if (response.data.success && response.data.pdf) {
+				toast.success("Accès autorisé !");
+				setIsPasswordDialogOpen(false);
+				setPasswordInput("");
+				
+				// Ouvrir le PDF dans une nouvelle fenêtre
+				setTimeout(() => {
+					window.open(response.data.pdf, "_blank");
+				}, 300);
+			}
+		} catch (error: any) {
+			console.error("Erreur vérification:", error);
+			toast.error(
+				error.response?.data?.message || "Mot de passe incorrect"
+			);
+		} finally {
+			setIsVerifying(false);
+		}
+	};
+
+	// ✅ Gestion du téléchargement
+	const handleDownload = (resultat: Resultat) => {
+		if (resultat.security) {
+			// Document sécurisé : demander le mot de passe
+			setSelectedResultatId(resultat._id);
+			setPasswordInput("");
+			setIsPasswordDialogOpen(true);
+		} else {
+			// Document non sécurisé : télécharger directement
+			if (resultat.pdf) {
+				toast.info("Téléchargement en cours...");
+				window.open(resultat.pdf, "_blank");
+			}
+		}
 	};
 
 	const resetForm = () => {
@@ -291,7 +343,6 @@ const Resultats = () => {
 		setEditingId(null);
 		setIsDialogOpen(false);
 
-		// Nettoyer la preview
 		if (pdfPreview && !pdfPreview.startsWith("http")) {
 			URL.revokeObjectURL(pdfPreview);
 		}
@@ -339,13 +390,13 @@ const Resultats = () => {
 									</DialogTitle>
 									<DialogDescription>
 										Téléversez le fichier PDF correspondant
-										à la filière et au semestre.
+										à la filière et au trimestre.
 									</DialogDescription>
 								</DialogHeader>
 
 								<div className="space-y-4">
 									<div>
-										<Label>Session</Label>
+										<Label>Type</Label>
 										<Select
 											value={formData.categorie}
 											onValueChange={(v) =>
@@ -365,12 +416,15 @@ const Resultats = () => {
 												<SelectItem value="Rattrapage">
 													Rattrapage
 												</SelectItem>
+												<SelectItem value="Examen">
+													Examen
+												</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
 
 									<div>
-										<Label>Filière</Label>
+										<Label>Série</Label>
 										<Select
 											value={formData.filiere}
 											onValueChange={(v) =>
@@ -384,30 +438,36 @@ const Resultats = () => {
 												<SelectValue placeholder="Sélectionnez une filière" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="Génie industriel">
-													Génie industriel
+												<SelectItem value="Tronc commun industriel (STCI)">
+													Tronc commun industriel (STCI)
 												</SelectItem>
-												<SelectItem value="Génie mécanique">
-													Génie mécanique
+												<SelectItem value="Système d'information et du numérique">
+													Système d'information et du numérique
 												</SelectItem>
-												<SelectItem value="Génie électronique">
-													Génie électronique
+												<SelectItem value="Génie civil (F4)">
+													Génie civil (F4)
 												</SelectItem>
-												<SelectItem value="Génie électrotechnique">
-													Génie électrotechnique
+												<SelectItem value="Génie industriel (série E)">
+													Génie industriel (série E)
 												</SelectItem>
-												<SelectItem value="Génie civil">
-													Génie civil
+												<SelectItem value="Génie mécanique (série F1)">
+													Génie mécanique (série F1)
 												</SelectItem>
-												<SelectItem value="Informatique">
-													Informatique
+												<SelectItem value="Génie électronique (série F2)">
+													Génie électronique (série F2)
+												</SelectItem>
+												<SelectItem value="Génie électrotechnique (série F3)">
+													Génie électrotechnique (série F3)
+												</SelectItem>
+												<SelectItem value="Réseaux et télécommunication (H5)">
+													Réseaux et télécommunication (H5)
 												</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
 
 									<div>
-										<Label>Niveau</Label>
+										<Label>Classe</Label>
 										<Select
 											value={formData.niveau}
 											onValueChange={(v) =>
@@ -418,24 +478,24 @@ const Resultats = () => {
 											}
 										>
 											<SelectTrigger>
-												<SelectValue placeholder="Ex: Licence 1" />
+												<SelectValue placeholder="Ex: Seconde" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="Licence 1">
-													Licence 1
+												<SelectItem value="Seconde">
+													Seconde
 												</SelectItem>
-												<SelectItem value="Licence 2">
-													Licence 2
+												<SelectItem value="Première">
+													Première
 												</SelectItem>
-												<SelectItem value="Licence 3">
-													Licence 3
+												<SelectItem value="Terminale">
+													Terminale
 												</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
 
 									<div>
-										<Label>Semestre</Label>
+										<Label>Trimestre</Label>
 										<Select
 											value={formData.semestre}
 											onValueChange={(v) =>
@@ -446,14 +506,17 @@ const Resultats = () => {
 											}
 										>
 											<SelectTrigger>
-												<SelectValue placeholder="Ex: Semestre 1" />
+												<SelectValue placeholder="Selectionner un trimestre" />
 											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value="1">
-													Semestre 1
+													Premier trimestre
 												</SelectItem>
 												<SelectItem value="2">
-													Semestre 2
+													Deuxième trimestre
+												</SelectItem>
+												<SelectItem value="3">
+													Troisième trimestre
 												</SelectItem>
 											</SelectContent>
 										</Select>
@@ -643,7 +706,7 @@ const Resultats = () => {
 													required={
 														formData.security
 													}
-													className="border-primary/50 focus:border-primary"
+													className="border-primary/50 outline-none focus:border-primary"
 												/>
 												<p className="text-xs text-gray-500">
 													Ce mot de passe sera
@@ -704,95 +767,211 @@ const Resultats = () => {
 						{resultats.map((r) => (
 							<Card
 								key={r._id}
-								className="p-6 shadow-md hover:shadow-lg transition"
+								className={`group relative flex flex-col h-full shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden ${
+									r.security 
+										? 'border-2 border-amber-300 bg-gradient-to-br from-amber-50/30 to-white' 
+										: 'border border-gray-200 hover:border-primary/30'
+								}`}
 							>
-								<div className="flex justify-between items-start mb-4">
-									<div className="w-12 h-12 bg-primary text-white rounded-lg flex items-center justify-center relative">
-										<FileText className="w-6 h-6" />
-										{r.security && (
-											<div className="absolute -top-1 -right-1 bg-amber-500 rounded-full p-1">
-												<Lock className="w-3 h-3 text-white" />
-											</div>
-										)}
+								{/* Badge sécurité en haut à droite */}
+								{r.security && (
+									<div className="absolute top-0 right-0 bg-gradient-to-br from-amber-400 to-amber-600 text-white px-3 py-1 rounded-bl-lg shadow-md flex items-center gap-1 z-10">
+										<Lock className="w-3 h-3" />
+										<span className="text-xs font-semibold">Protégé</span>
 									</div>
+								)}
+
+								{/* En-tête avec icône et actions */}
+								<div className="p-6 pb-4">
+									<div className="flex justify-between items-start mb-4">
+										<div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
+											r.security 
+												? 'bg-gradient-to-br from-amber-400 to-amber-600' 
+												: 'bg-gradient-to-br from-primary to-primary/80'
+										}`}>
+											<FileText className="w-7 h-7 text-white" />
+										</div>
+										<div className="flex gap-1.5">
+											<Button
+												size="icon"
+												variant="ghost"
+												onClick={() => handleEdit(r)}
+												className="h-9 w-9 rounded-lg bg-gray-100 hover:bg-primary hover:text-white transition-all duration-200"
+												disabled={isLoading}
+											>
+												<Edit className="w-4 h-4" />
+											</Button>
+											<Button
+												size="icon"
+												variant="ghost"
+												onClick={() => handleDelete(r._id)}
+												className="h-9 w-9 rounded-lg bg-gray-100 hover:bg-red-500 hover:text-white transition-all duration-200"
+												disabled={isLoading}
+											>
+												<Trash2 className="w-4 h-4" />
+											</Button>
+										</div>
+									</div>
+
+									{/* Titre */}
+									<h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2 line-clamp-1">
+										{r.categorie}
+									</h3>
+
+									{/* Informations principales */}
+									<div className="space-y-2 mb-4">
+										<div className="flex items-start gap-2">
+											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Filière :</span>
+											<span className="text-sm text-gray-700 font-medium line-clamp-2">{r.filiere}</span>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Niveau :</span>
+											<span className="text-sm text-gray-700">{r.niveau}</span>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Trimestre :</span>
+											<span className="text-sm text-gray-700">T{r.semestre}</span>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Année :</span>
+											<span className="text-sm text-gray-700 font-medium">{r.annee}</span>
+										</div>
+									</div>
+
+									{/* Date de publication */}
+									<div className="pt-3 border-t border-gray-100">
+										<p className="text-xs text-gray-500 flex items-center gap-1">
+											<span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+											Publié le {new Date(r.createdAt).toLocaleDateString("fr-FR", { 
+												day: '2-digit', 
+												month: 'short', 
+												year: 'numeric' 
+											})}
+										</p>
+									</div>
+								</div>
+
+								{/* Spacer pour pousser les boutons en bas */}
+								<div className="flex-grow"></div>
+
+								{/* Boutons d'action en bas */}
+								<div className="p-6 pt-0 mt-auto">
 									<div className="flex gap-2">
 										<Button
-											size="icon"
-											variant="ghost"
-											onClick={() => handleEdit(r)}
-											className="p-2 bg-slate-200 hover:bg-primary hover:text-white"
-											disabled={isLoading}
+											variant="outline"
+											className={`flex-1 h-11 font-semibold transition-all duration-200 ${
+												r.security
+													? 'border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500'
+													: 'border-primary/30 text-primary hover:bg-primary hover:text-white hover:border-primary'
+											}`}
+											onClick={() => handleViewPdf(r)}
 										>
-											<Edit className="w-4 h-4" />
+											{r.security ? (
+												<>
+													<Lock className="w-4 h-4 mr-2" />
+													Déverrouiller
+												</>
+											) : (
+												<>
+													<Eye className="w-4 h-4 mr-2" />
+													Consulter
+												</>
+											)}
 										</Button>
 										<Button
+											variant="outline"
 											size="icon"
-											variant="ghost"
-											onClick={() =>
-												handleDelete(r._id)
-											}
-											className="p-2 bg-slate-200 hover:bg-red-100"
-											disabled={isLoading}
+											className="h-11 w-11 border-gray-300 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+											onClick={() => handleDownload(r)}
 										>
-											<Trash2 className="w-4 h-4 text-red-600" />
+											<Download className="w-5 h-5 text-gray-600" />
 										</Button>
 									</div>
-								</div>
-
-								<div className="space-y-1">
-									<h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
-										{r.categorie}
-										{r.security && (
-											<Lock className="w-4 h-4 text-amber-500" />
-										)}
-									</h3>
-									<p className="text-sm text-gray-600">
-										Filière : {r.filiere}
-									</p>
-									<p className="text-sm text-gray-600">
-										Niveau : {r.niveau}
-									</p>
-									<p className="text-sm text-gray-600">
-										Semestre : {r.semestre}
-									</p>
-									<p className="text-sm text-gray-600">
-										Année : {r.annee}
-									</p>
-									<p className="text-xs text-gray-500">
-										Publié le{" "}
-										{new Date(
-											r.createdAt
-										).toLocaleDateString("fr-FR")}
-									</p>
-								</div>
-
-								<div className="flex gap-2 mt-4">
-									<Button
-										variant="outline"
-										className="flex-1 hover:bg-primary hover:text-white"
-										onClick={() => handleViewPdf(r.pdf)}
-									>
-										<Eye className="w-6 h-6 mr-2" /> Lire
-									</Button>
-									<Button
-										variant="outline"
-										className="flex-1"
-										asChild
-									>
-										<a
-											href={r.pdf}
-											download
-											target="_blank"
-											rel="noopener noreferrer"
-										>
-											<Download className="w-4 h-4 mr-2" />{" "}
-											Télécharger
-										</a>
-									</Button>
 								</div>
 							</Card>
 						))}
 					</div>
+
+					{/* ✅ MODAL DE MOT DE PASSE */}
+					<Dialog
+						open={isPasswordDialogOpen}
+						onOpenChange={(open) => {
+							setIsPasswordDialogOpen(open);
+							if (!open) {
+								setPasswordInput("");
+								setSelectedResultatId("");
+							}
+						}}
+					>
+						<DialogContent className="max-w-md">
+							<DialogHeader>
+								<DialogTitle className="flex items-center gap-2">
+									<Lock className="w-5 h-5 text-primary" />
+									Document protégé
+								</DialogTitle>
+								<DialogDescription>
+									Ce document est protégé par un mot de passe. Veuillez entrer le mot de passe pour y accéder.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="space-y-4 py-4">
+								<div className="space-y-2">
+									<Label htmlFor="access-password">
+										Mot de passe
+									</Label>
+									<Input
+										id="access-password"
+										type="password"
+										value={passwordInput}
+										onChange={(e) =>
+											setPasswordInput(e.target.value)
+										}
+										placeholder="Entrez le mot de passe"
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												handleVerifyPassword();
+											}
+										}}
+										disabled={isVerifying}
+										autoFocus
+										className="outline-0"
+									/>
+								</div>
+
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setIsPasswordDialogOpen(false);
+											setPasswordInput("");
+										}}
+										className="flex-1 cursor-pointer hover:bg-red-500"
+										disabled={isVerifying}
+									>
+										Annuler
+									</Button>
+									<Button
+										onClick={handleVerifyPassword}
+										className="flex-1 bg-primary hover:bg-primary/75 text-white"
+										disabled={isVerifying || !passwordInput.trim()}
+									>
+										{isVerifying ? (
+											<>
+												<Loader2 className="w-4 h-4 animate-spin mr-2" />
+												Vérification...
+											</>
+										) : (
+											<>
+												<Unlock className="w-4 h-4 mr-2" />
+												Accéder
+											</>
+										)}
+									</Button>
+								</div>
+							</div>
+						</DialogContent>
+					</Dialog>
 
 					{/* PDF VIEWER MODAL */}
 					{isPdfViewerOpen && (
