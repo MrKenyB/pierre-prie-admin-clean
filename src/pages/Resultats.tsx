@@ -15,6 +15,10 @@ import {
 	Lock,
 	Unlock,
 	ShieldAlert,
+	FilterIcon,
+	SearchIcon,
+	BrushIcon,
+	
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,16 @@ import { usePierreHook } from "@/hooks/pierreHook";
 const Resultats = () => {
 	axios.defaults.withCredentials = true;
 
+	// filtre 
+	const [filters, setFilters] = useState({
+		categorie:"",
+		filiere: "",
+		niveau: "",
+		semestre: "",
+		annee: "",
+		page: 1,
+	});
+	
 	const [resultats, setResultats] = useState<Resultat[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -81,11 +95,24 @@ const Resultats = () => {
 		};
 	}, [pdfPreview]);
 
+
+
 	const fetchResultats = async () => {
 		try {
 			setIsLoading(true);
+
+			const params = new URLSearchParams();
+			
+			if (filters.categorie) params.append("categorie", filters.categorie);
+			if (filters.filiere) params.append("filiere", filters.filiere);
+			if (filters.niveau) params.append("niveau", filters.niveau);
+			if (filters.semestre) params.append("semestre", filters.semestre);
+			if (filters.annee) params.append("annee", filters.annee);
+			params.append("page", filters.page.toString());
+			params.append("limit", "10");
+
 			const response = await axios.get(
-				`${backendUrl}/api/resultat/get-all`
+				`${backendUrl}/api/resultat/get-all?${params.toString()}`
 			);
 
 			if (response.data.success) {
@@ -100,6 +127,23 @@ const Resultats = () => {
 		} finally {
 			setIsLoading(false);
 		}
+	};
+
+	const handleSearch = () => {
+		setFilters((prev) => ({ ...prev, page: 1 }));
+		fetchResultats();
+	};
+
+	const handleReset = () => {
+		setFilters({
+			categorie:"",
+			filiere: "",
+			niveau: "",
+			semestre: "",
+			annee: "",
+			page: 1,
+		});
+		setTimeout(() => fetchResultats(), 100);
 	};
 
 	const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -354,11 +398,12 @@ const Resultats = () => {
 	return (
 		<DashboardLayout>
 			<div className="min-h-screen">
-				<div className="p-6 lg:p-8 max-w-7xl mx-auto">
+				<div className=" p-4 mx-auto">
 					{/* HEADER */}
+					
 					<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
 						<div>
-							<h1 className="text-3xl font-bold text-gray-900 mb-1">
+							<h1 className="text-3xl font-bold text-gray-600 mb-1">
 								Résultats scolaires
 							</h1>
 							<p className="text-gray-600 text-sm">
@@ -746,6 +791,193 @@ const Resultats = () => {
 						</Dialog>
 					</div>
 
+					
+				{/* Filtre */}
+				<div className="w-full flex justify-center items-center mb-8">
+					<div className="w-full bg-white rounded-md shadow border border-gray-100 p-4 md:p-6">
+						<div className="flex items-center gap-3 mb-5 text-gray-600 font-bold">
+							<FilterIcon className="text-xl" />
+							<h2>Filtrer</h2>
+						</div>
+
+						<div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 items-end gap-4 md:gap-6">
+							
+							<div className="flex flex-col gap-2">
+								<label
+									htmlFor="filiere"
+									className="text-sm md:text-base"
+								>
+									Catégorie
+								</label>
+								<select
+									id="filiere"
+									className="bg-gray-300 p-2 rounded-md cursor-pointer text-sm md:text-base"
+									value={filters.categorie}
+									onChange={(e) =>
+										setFilters((prev) => ({
+											...prev,
+											categorie: e.target.value,
+										}))
+									}
+								>
+									<option value="">Toute les catégories</option>
+									<option value="Ordinaire">
+										Ordinaire
+									</option>
+									<option value="Rattrapage">
+										Rattrapage
+									</option>
+									<option value="Examen">
+										Examen
+									</option>
+								</select>
+							</div>
+							
+							<div className="flex flex-col gap-2">
+								<label
+									htmlFor="filiere"
+									className="text-sm md:text-base"
+								>
+									Série
+								</label>
+								<select
+									id="filiere"
+									className="bg-gray-300 p-2 rounded-md cursor-pointer text-sm md:text-base"
+									value={filters.filiere}
+									onChange={(e) =>
+										setFilters((prev) => ({
+											...prev,
+											filiere: e.target.value,
+										}))
+									}
+								>
+									<option value="">Tous</option>
+									<option value="Tronc commun industriel (STCI)">
+										Tronc commun industriel (STCI)
+									</option>
+									<option value="Système d'information et du numérique">
+										Système d'information et du numérique
+									</option>
+									<option value="Génie civil (F4)">
+										Génie civil (F4)
+									</option>
+									<option value="Génie industriel (série E)">
+										Génie industriel (série E)
+									</option>
+									<option value="Génie mécanique (série F1)">
+										Génie mécanique (série F1)
+									</option>
+									<option value="Génie électronique (série F2)">
+										Génie électronique (série F2)
+									</option>
+									<option value="Génie électrotechnique (série F3)">
+										Génie électrotechnique (série F3)
+									</option>
+									<option value="Réseaux et télécommunication (H5)">
+										Réseaux et télécommunication (H5)
+									</option>
+								</select>
+							</div>
+
+							<div className="flex flex-col gap-2">
+								<label
+									htmlFor="niveau"
+									className="text-sm md:text-base"
+								>
+									Niveau
+								</label>
+								<select
+									id="niveau"
+									className="bg-gray-300 p-2 rounded-md cursor-pointer text-sm md:text-base"
+									value={filters.niveau}
+									onChange={(e) =>
+										setFilters((prev) => ({
+											...prev,
+											niveau: e.target.value,
+										}))
+									}
+								>
+									<option value="">Tous</option>
+									<option value="Seconde">Seconde</option>
+									<option value="Première">Première</option>
+									<option value="Terminale">Terminale</option>
+								</select>
+							</div>
+
+							<div className="flex flex-col gap-2">
+								<label
+									htmlFor="semestre"
+									className="text-sm md:text-base"
+								>
+									Trimestre
+								</label>
+								<select
+									id="semestre"
+									className="bg-gray-300 p-2 rounded-md cursor-pointer text-sm md:text-base"
+									value={filters.semestre}
+									onChange={(e) =>
+										setFilters((prev) => ({
+											...prev,
+											semestre: e.target.value,
+										}))
+									}
+								>
+									<option value="">Tous</option>
+									<option value="1">Trimestre 1</option>
+									<option value="2">Trimestre 2</option>
+									<option value="3">Trimestre 3</option>
+								</select>
+							</div>
+
+							<div className="flex flex-col gap-2">
+								<label
+									htmlFor="annee"
+									className="text-sm md:text-base"
+								>
+									Année
+								</label>
+								<select
+									id="annee"
+									className="bg-gray-300 p-2 rounded-md cursor-pointer text-sm md:text-base"
+									value={filters.annee}
+									onChange={(e) =>
+										setFilters((prev) => ({
+											...prev,
+											annee: e.target.value,
+										}))
+									}
+								>
+									<option value="">Toutes</option>
+									{annees.map((year) => (
+										<option
+											key={year}
+											value={`${year}-${year + 1}`}
+										>
+											{year}-{year + 1}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div className="flex items-center gap-3 w-full sm:col-span-2 lg:col-span-1">
+								<button
+									onClick={handleReset}
+									className="bg-primary p-2 md:p-3 rounded-md text-white cursor-pointer hover:scale-95 transition-all flex-shrink-0"
+									title="Réinitialiser"
+								>
+									<BrushIcon className="w-5 h-5" />
+								</button>
+								<button
+									onClick={handleSearch}
+									className="flex flex-1 items-center justify-center gap-2 p-2 md:p-3 rounded-md bg-primary text-white cursor-pointer hover:scale-95 transition-all duration-150 text-sm md:text-base"
+								>
+									<SearchIcon className="w-5 h-5" />
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
 					{/* LOADER */}
 					{isLoading && resultats.length === 0 && (
 						<div className="flex justify-center items-center h-64">
@@ -769,13 +1001,13 @@ const Resultats = () => {
 								key={r._id}
 								className={`group relative flex flex-col h-full shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden ${
 									r.security 
-										? 'border-2 border-amber-300 bg-gradient-to-br from-amber-50/30 to-white' 
+										? 'border-2 border-red-300 bg-gradient-to-br from-amber-50/30 to-white' 
 										: 'border border-gray-200 hover:border-primary/30'
 								}`}
 							>
 								{/* Badge sécurité en haut à droite */}
 								{r.security && (
-									<div className="absolute top-0 right-0 bg-gradient-to-br from-amber-400 to-amber-600 text-white px-3 py-1 rounded-bl-lg shadow-md flex items-center gap-1 z-10">
+									<div className="absolute top-0 right-0 bg-gradient-to-br from-red-400 to-red-600 text-white px-3 py-1 rounded-bl-lg shadow-md flex items-center gap-1 z-10">
 										<Lock className="w-3 h-3" />
 										<span className="text-xs font-semibold">Protégé</span>
 									</div>
@@ -786,7 +1018,7 @@ const Resultats = () => {
 									<div className="flex justify-between items-start mb-4">
 										<div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
 											r.security 
-												? 'bg-gradient-to-br from-amber-400 to-amber-600' 
+												? 'bg-gradient-to-br from-red-400 to-red-600' 
 												: 'bg-gradient-to-br from-primary to-primary/80'
 										}`}>
 											<FileText className="w-7 h-7 text-white" />
@@ -830,7 +1062,7 @@ const Resultats = () => {
 										</div>
 										<div className="flex items-center gap-2">
 											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Trimestre :</span>
-											<span className="text-sm text-gray-700">T{r.semestre}</span>
+											<span className="text-sm text-gray-700">{r.semestre}</span>
 										</div>
 										<div className="flex items-center gap-2">
 											<span className="text-xs font-semibold text-gray-500 min-w-[70px]">Année :</span>
@@ -851,7 +1083,6 @@ const Resultats = () => {
 									</div>
 								</div>
 
-								{/* Spacer pour pousser les boutons en bas */}
 								<div className="flex-grow"></div>
 
 								{/* Boutons d'action en bas */}
@@ -861,7 +1092,7 @@ const Resultats = () => {
 											variant="outline"
 											className={`flex-1 h-11 font-semibold transition-all duration-200 ${
 												r.security
-													? 'border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500'
+													? 'border-red-300 text-red-700 hover:bg-red-500 hover:text-white hover:border-amber-500'
 													: 'border-primary/30 text-primary hover:bg-primary hover:text-white hover:border-primary'
 											}`}
 											onClick={() => handleViewPdf(r)}

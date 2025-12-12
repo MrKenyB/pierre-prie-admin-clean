@@ -237,7 +237,7 @@ const Formations = () => {
 
 			if (response.data.success) {
 				toast.success("Formation supprimée");
-				fetchFormations(classe); // Rafraîchir avec le filtre actuel
+				fetchFormations(classe);
 			}
 		} catch (error: any) {
 			console.log("Erreur delete:", error);
